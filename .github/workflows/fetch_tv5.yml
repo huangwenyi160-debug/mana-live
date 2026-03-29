@@ -1,51 +1,37 @@
 name: Fetch TV5 Live Source
 on:
   schedule:
-    - cron: '*/5 * * * *'  # 每5分钟自动执行一次
-  workflow_dispatch:       # 允许手动触发
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 jobs:
-  fetch:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Install dependencies
+      - name: Install requests
         run: pip install requests
-          
-      - name: Fetch and update TV5 source
+      - name: Fetch TV5 source
         run: |
           python -c "
 import requests
 import re
-
-# 访问 mana2 TV5 页面获取新链接
 url = 'https://live.mana2.my/Tv5'
-headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+headers = {'User-Agent': 'Mozilla/5.0'}
 res = requests.get(url, headers=headers)
-
-# 正则提取最新 m3u8 链接
-pattern = r'https://live\.mana2\.my/Tv5/index\.m3u8\?auth_key=[^\"&]+&token=[^\"&]+'
-match = re.search(pattern, res.text)
-
+match = re.search(r'https://live\.mana2\.my/Tv5/index\.m3u8\?auth_key=[^\"&]+&token=[^\"&]+', res.text)
 if match:
-    new_url = match.group(0)
-    with open('tv5.txt', 'w', encoding='utf-8') as f:
-        f.write(new_url)
-    print('✅ 成功更新 TV5 源:', new_url)
-else:
-    print('❌ 未抓取到新的 TV5 源')
+    with open('tv5.txt', 'w') as f:
+        f.write(match.group(0))
 "
-      
-      - name: Commit and push changes
+      - name: Commit changes
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add tv5.txt
-          git commit -m "Auto-update TV5 source $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
+          git commit -m "Update TV5 source" || echo "No changes"
           git push
